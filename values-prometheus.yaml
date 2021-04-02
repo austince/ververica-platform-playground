@@ -13,6 +13,13 @@ nodeExporter:
 pushgateway:
   enabled: false
 
+server:
+  # Use an explicit fullname and port to align service name with Prometheus Operator
+  fullnameOverride: "vvp-metrics-prometheus"
+
+  service:
+    servicePort: 80
+
 # | is required because extraScrapeConfigs is expected to be a string
 extraScrapeConfigs: |
   - job_name: 'kubernetes-pods-scrape-every-2s'

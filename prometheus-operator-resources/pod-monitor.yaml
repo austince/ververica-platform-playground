@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: flink-jobs
+spec:
+  selector:
+    matchLabels:
+      system: ververica-platform
+      app: flink-job
+  podTargetLabels:
+    - deploymentId
+    - deploymentName
+    - jobId
+    - vvpNamespace
+  podMetricsEndpoints:
+    - port: metrics
+

@@ -54,6 +54,15 @@ install_prometheus() {
     --values values-prometheus.yaml
 }
 
+install_prometheus_operator() {
+  helm_install prometheus-operator kube-prometheus-stack "$VVP_NAMESPACE" \
+    --repo https://prometheus-community.github.io/helm-charts \
+    --values values-prometheus-operator.yaml \
+    --set prometheusOperator.namespaces.additional="{$JOBS_NAMESPACE}" \
+
+  kubectl --namespace "$JOBS_NAMESPACE" apply -f prometheus-operator-resources/pod-monitor.yaml
+}
+
 install_grafana() {
   helm_install grafana grafana "$VVP_NAMESPACE" \
     --repo https://grafana.github.io/helm-charts \
@@ -108,6 +117,20 @@ prompt() {
     return 1
     ;;
   esac
+}
+
+select_option() {
+  local options=("$@")
+
+  PS3="> "
+  select opt in "${options[@]}"; do
+    if [ 1 -le "$REPLY" ] && [ "$REPLY" -le ${#options[@]} ]; then
+      echo "$opt"
+      break
+    else
+      echo "invalid choice: $REPLY" >&2
+    fi
+  done
 }
 
 install_vvp() {
@@ -185,18 +208,28 @@ main() {
   echo "> Creating Kubernetes namespaces..."
   create_namespaces
 
-  echo "> Installing MinIO..."
-  install_minio || :
-
   if [ -n "$install_metrics" ]; then
-    echo "> Installing Prometheus..."
-    install_prometheus || :
+    echo "> Installing metrics stack"
+
+    echo "Which Prometheus Stack?"
+    case $(select_option "Standalone" "Prometheus Operator") in
+    Standalone)
+      echo "> Installing standalone Prometheus..."
+      install_prometheus || :
+      ;;
+    "Prometheus Operator")
+      echo "> Installing Prometheus Operator and PodMonitor..."
+      install_prometheus_operator || :
+      ;;
+    esac
 
     echo "> Installing Grafana..."
     install_grafana || :
   fi
 
   if [ -n "$install_logging" ]; then
+    echo "> Installing logging stack"
+
     echo "> Installing Elasticsearch..."
     install_elasticsearch || :
 
@@ -206,6 +239,9 @@ main() {
     echo "> Installing Kibana..."
     install_kibana || :
   fi
+
+  echo "> Installing MinIO..."
+  install_minio || :
 
   echo "> Installing Ververica Platform..."
   install_vvp "$edition" "$install_metrics" "$install_logging" || :

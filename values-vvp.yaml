@@ -31,10 +31,34 @@ vvp:
             execution.checkpointing.interval: 10s
             execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
           kubernetes:
-            pods:
-              annotations:
-                prometheus.io/port: '9249'
-                prometheus.io/scrape: 'true'
+            ### Using the jobManagerPodTemplate and taskManagerPodTemplate, we can expose the Prometheus metrics
+            ### on each of the job's pods.
+            ### The `annotations` are required for the "standalone" Prometheus server,
+            ### while the named `metric` ports allow a Prometheus Operator PodMonitor to scrape them.
+            jobManagerPodTemplate:
+              metadata:
+                annotations:
+                  prometheus.io/port: '9249'
+                  prometheus.io/scrape: 'true'
+              spec:
+                containers:
+                  - name: flink-jobmanager
+                    ports:
+                      - name: metrics
+                        containerPort: 9249
+                        protocol: TCP
+            taskManagerPodTemplate:
+              metadata:
+                annotations:
+                  prometheus.io/port: '9249'
+                  prometheus.io/scrape: 'true'
+              spec:
+                containers:
+                  - name: flink-taskmanager
+                    ports:
+                      - name: metrics
+                        containerPort: 9249
+                        protocol: TCP
 
   ### Decrease the JobGraph translation thread pool size. This reduces our worst-case memory
   ### requirements by reducing the number of translations that can happen in parallel.
